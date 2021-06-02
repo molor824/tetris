@@ -20,7 +20,7 @@ const END: [i32; 2] = [WIDTH / 2 + TETRIS_W as i32 * BLOCK_SIZE / 2, HEIGHT / 2 
 const SAVE_PATH: &str = "best_score";
 const FALL_TIME: f32 = 1.5;
 const DROP_TIME: f32 = 0.025;
-const CLEAR_TIME: f32 = 0.05;
+const CLEAR_TIME: f32 = 0.025;
 const SIDE_MOVE_DELAY: f32 = 0.2;
 const SIDE_MOVE_TIME: f32 = 0.05;
 const FONT_SIZE: i32 = 20;
@@ -83,7 +83,6 @@ impl MainLoop {
 		if self.game_over {return;}
 
 		self.elapsed1 += DELAY;
-		self.elapsed += DELAY;
 		if self.dir != 0 {self.elapsed2 -= DELAY;}
 		
 		if self.line_clear != 0 {
@@ -97,7 +96,6 @@ impl MainLoop {
 					}
 				}
 			}
-			self.elapsed = 0.0;
 			return;
 		}
 		for i in 0..TETRIS_H {
@@ -111,6 +109,7 @@ impl MainLoop {
 				self.full_lines[i] = false;
 			}
 		}
+		self.elapsed += DELAY;
 		let hold_block_type = self.hold_block_type;
 		if rh.is_key_pressed(KeyboardKey::KEY_C) && !self.hold_block {
 			self.hold_block = true;
