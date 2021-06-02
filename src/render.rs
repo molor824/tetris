@@ -13,19 +13,22 @@ pub fn render_grid(grid: &[usize], d: &mut RaylibDrawHandle) {
 		}
 	}
 }
-pub fn render_block(b: &Block, d: &mut RaylibDrawHandle, transparency: u8) {
+pub fn render_block(b: &Block, d: &mut RaylibDrawHandle, transparency: u8, past_limit: bool, offset: [i32; 2]) {
 	for i in 0..4 {
-		let mut offset = BLOCK_OFFSETS[b.block_type][i].rotate90(b.rot);
-		offset[0] += b.pos[0]; offset[1] += b.pos[1];
-		offset[0] = offset[0].round(); offset[1] = offset[1].round();
-		if (offset[0] as i32) < 0 || (offset[0] as i32) >= TETRIS_W as i32 || 
-			(offset[1] as i32) < 0 || (offset[1] as i32) >= TETRIS_H as i32 {continue;}
+		let mut block_offset = BLOCK_OFFSETS[b.block_type][i].rotate90(b.rot);
+		block_offset[0] += b.pos[0]; block_offset[1] += b.pos[1];
+		block_offset[0] = block_offset[0].round();
+		block_offset[1] = block_offset[1].round();
+
+		if !past_limit && ((block_offset[0] as i32) < 0 || (block_offset[0] as i32) >= TETRIS_W as i32 || 
+			(block_offset[1] as i32) < 0 || (block_offset[1] as i32) >= TETRIS_H as i32) {continue;}
 
 		let col = BLOCK_COLS[b.block_type];
 		d.draw_rectangle(
-			START[0] + offset[0] as i32 * BLOCK_SIZE,
-			START[1] + offset[1] as i32 * BLOCK_SIZE,
-			BLOCK_SIZE, BLOCK_SIZE, Color::new(col[0], col[1], col[2], transparency)
+			START[0] + block_offset[0] as i32 * BLOCK_SIZE + GRID_OUTLINE_THICKNESS + offset[0],
+			START[1] + block_offset[1] as i32 * BLOCK_SIZE + GRID_OUTLINE_THICKNESS + offset[1],
+			BLOCK_SIZE - GRID_OUTLINE_THICKNESS * 2, BLOCK_SIZE - GRID_OUTLINE_THICKNESS * 2,
+			Color::new(col[0], col[1], col[2], transparency)
 		);
 	}
 }

@@ -16,6 +16,7 @@ const TETRIS_W: usize = 10;
 const TETRIS_H: usize = 24;
 const BLOCK_SIZE: i32 = 20;
 const START: [i32; 2] = [WIDTH / 2 - TETRIS_W as i32 * BLOCK_SIZE / 2, HEIGHT / 2 - TETRIS_H as i32 * BLOCK_SIZE / 2];
+const END: [i32; 2] = [WIDTH / 2 + TETRIS_W as i32 * BLOCK_SIZE / 2, HEIGHT / 2 + TETRIS_H as i32 * BLOCK_SIZE / 2];
 const SAVE_PATH: &str = "best_score";
 const FALL_TIME: f32 = 1.5;
 const DROP_TIME: f32 = 0.05;
@@ -106,22 +107,22 @@ impl MainLoop {
 			}
 		}
 		
-		if rh.is_key_pressed(KeyboardKey::KEY_A) {
+		if rh.is_key_pressed(KeyboardKey::KEY_LEFT) {
 			self.block.pos[0] -= 1.0;
 			if self.block.block_collision(&self.grid) {self.block.pos[0] += 1.0;}
 			self.dir = -1;
 			self.elapsed2 = SIDE_MOVE_DELAY;
 		}
-		if rh.is_key_pressed(KeyboardKey::KEY_D) {
+		if rh.is_key_pressed(KeyboardKey::KEY_RIGHT) {
 			self.block.pos[0] += 1.0;
 			if self.block.block_collision(&self.grid) {self.block.pos[0] -= 1.0;}
 			self.dir = 1;
 			self.elapsed2 = SIDE_MOVE_DELAY;
 		}
-		if (rh.is_key_released(KeyboardKey::KEY_A) && self.dir == -1) ||
-			(rh.is_key_released(KeyboardKey::KEY_D) && self.dir == 1) {self.dir = 0;}
+		if (rh.is_key_released(KeyboardKey::KEY_LEFT) && self.dir == -1) ||
+			(rh.is_key_released(KeyboardKey::KEY_RIGHT) && self.dir == 1) {self.dir = 0;}
 
-		if rh.is_key_pressed(KeyboardKey::KEY_W) && self.block.block_type != 3 {
+		if rh.is_key_pressed(KeyboardKey::KEY_UP) && self.block.block_type != 3 {
 			self.block.rot += 1;
 			if self.block.rot > 3 {self.block.rot = 0;}
 			if self.block.block_collision(&self.grid) {
@@ -150,18 +151,18 @@ impl MainLoop {
 		}
 		if self.elapsed2 <= 0.0 {
 			self.elapsed2 = SIDE_MOVE_TIME;
-			if rh.is_key_down(KeyboardKey::KEY_A) && self.dir == -1 {
+			if rh.is_key_down(KeyboardKey::KEY_LEFT) && self.dir == -1 {
 				self.block.pos[0] -= 1.0;
 				if self.block.block_collision(&self.grid) {self.block.pos[0] += 1.0;}
 			}
-			else if rh.is_key_down(KeyboardKey::KEY_D) && self.dir == 1 {
+			else if rh.is_key_down(KeyboardKey::KEY_RIGHT) && self.dir == 1 {
 				self.block.pos[0] += 1.0;
 				if self.block.block_collision(&self.grid) {self.block.pos[0] -= 1.0;}
 			}
 		}
 		if self.elapsed1 >= DROP_TIME {
 			self.elapsed1 = 0.0;
-			if rh.is_key_down(KeyboardKey::KEY_S) {
+			if rh.is_key_down(KeyboardKey::KEY_DOWN) {
 				let temp = self.elapsed;
 				self.elapsed = 0.0;
 				self.block.pos[1] += 1.0;
@@ -180,7 +181,9 @@ impl MainLoop {
 			self.elapsed1 = 0.0;
 			self.dir = 0;
 
-			self.block.pos[1] -= 1.0;
+			while self.block.block_collision(&self.grid) {
+				self.block.pos[1] -= 1.0;
+			}
 			if self.block.reached_height() {
 				self.game_over = true;
 				return;
@@ -220,11 +223,35 @@ impl MainLoop {
 				self.block.pos[1] += 1.0;
 			}
 			self.block.pos[1] -= 1.0;
-			render_block(&self.block, rdh, 127);
+			render_block(&self.block, rdh, 127, false, [0, 0]);
 			self.block.pos[1] = temp;
-			render_block(&self.block, rdh, 255);
+			render_block(&self.block, rdh, 255, false, [0, 0]);
 		}
 		render_grid_outline(rdh);
+		rdh.draw_rectangle_lines_ex(
+			Rectangle::new(END[0] as f32 + BLOCK_SIZE as f32 - 5.0, START[1] as f32 - 5.0, (BLOCK_SIZE * 5) as f32 + 10.0, (BLOCK_SIZE * 10) as f32 + 10.0), 
+			5, Color::WHITE
+		);
+		render_block(&{
+			let mut b = Block::new(self.blocks_order[1]);
+			b.pos[0] += 9.0;
+			b.pos[1] += 1.0;
+			b
+		}, rdh, 255, true, [
+			if self.blocks_order[1] == 0 || self.blocks_order[1] == 3 {-BLOCK_SIZE / 2}
+			else {0},
+			0
+		]);
+		render_block(&{
+			let mut b = Block::new(self.blocks_order[2]);
+			b.pos[0] += 9.0;
+			b.pos[1] += 6.0;
+			b
+		}, rdh, 255, true, [
+			if self.blocks_order[2] == 0 || self.blocks_order[2] == 3 {-BLOCK_SIZE / 2}
+			else {0},
+			0
+		]);
 		if !self.game_over {rdh.draw_text(format!("Score: {}", self.score).as_str(), START[0], START[1] - 40, 20, Color::WHITE);}
 		else {
 			const FONT_SIZE: i32 = 20;
