@@ -3,13 +3,12 @@ mod render;
 
 use raylib::prelude::*;
 use std::io::prelude::*;
-use std::time::Instant;
 use block::*;
 use render::*;
 use rand::prelude::*;
 use std::fs::{OpenOptions, File};
 
-const DELAY: f32 = 1.0 / 60.0;
+const DELAY: f32 = 1.0 / 120.0;
 const GRID_OUTLINE_THICKNESS: i32 = 1;
 const WIDTH: i32 = 800;
 const HEIGHT: i32 = 600;
