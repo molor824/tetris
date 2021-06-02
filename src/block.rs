@@ -1,10 +1,10 @@
 use crate::*;
 
 pub trait Rotate90 {
-	fn rotate90(&self, rot: usize) -> Self;
+	fn rotate90(&self, rot: i8) -> Self;
 }
 impl Rotate90 for [f32; 2] {
-	fn rotate90(&self, rot: usize) -> Self {
+	fn rotate90(&self, rot: i8) -> Self {
 		match rot {
 			1 => [-self[1], self[0]],
 			2 => [-self[0], -self[1]],
@@ -26,7 +26,7 @@ pub const DEFAULT_POS: [[f32; 2]; 2] = [[4.0, 1.0], [4.5, 0.5]];
 pub const BLOCK_COLS: [[u8; 3]; 7] = [[0, 255, 255], [0, 0, 255], [255, 127, 0], [255, 255, 0], [0, 255, 0], [255, 0, 255], [255, 0, 0]];
 pub struct Block {
 	pub pos: [f32; 2],
-	pub rot: usize,
+	pub rot: i8,
 	pub block_type: usize,
 }
 impl Block {

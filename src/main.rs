@@ -8,7 +8,7 @@ use render::*;
 use rand::prelude::*;
 use std::fs::{OpenOptions, File};
 
-const DELAY: f32 = 1.0 / 120.0;
+const DELAY: f32 = 1.0 / 100.0;
 const GRID_OUTLINE_THICKNESS: i32 = 1;
 const WIDTH: i32 = 800;
 const HEIGHT: i32 = 600;
@@ -19,16 +19,17 @@ const START: [i32; 2] = [WIDTH / 2 - TETRIS_W as i32 * BLOCK_SIZE / 2, HEIGHT / 
 const END: [i32; 2] = [WIDTH / 2 + TETRIS_W as i32 * BLOCK_SIZE / 2, HEIGHT / 2 + TETRIS_H as i32 * BLOCK_SIZE / 2];
 const SAVE_PATH: &str = "best_score";
 const FALL_TIME: f32 = 1.5;
-const DROP_TIME: f32 = 0.05;
+const DROP_TIME: f32 = 0.025;
 const CLEAR_TIME: f32 = 0.05;
-const SIDE_MOVE_DELAY: f32 = 0.25;
+const SIDE_MOVE_DELAY: f32 = 0.2;
 const SIDE_MOVE_TIME: f32 = 0.05;
+const FONT_SIZE: i32 = 20;
 
 struct MainLoop {
 	elapsed: f32,
 	elapsed1: f32,
 	elapsed2: f32,
-	dir: i32,
+	dir: i8,
 	block: Block,
 	rng: ThreadRng,
 	grid: [usize; TETRIS_W * TETRIS_H],
@@ -38,6 +39,8 @@ struct MainLoop {
 	game_over: bool,
 	line_clear: usize,
 	full_lines: [bool; TETRIS_H],
+	hold_block_type: usize,
+	hold_block: bool,
 }
 impl MainLoop {
 	fn new() -> Self {
@@ -72,6 +75,8 @@ impl MainLoop {
 			game_over: false,
 			line_clear: 0,
 			full_lines: [false; TETRIS_H],
+			hold_block_type: 0,
+			hold_block: false,
 		}
 	}
 	fn update(&mut self, rh: &mut RaylibHandle) {
@@ -106,7 +111,25 @@ impl MainLoop {
 				self.full_lines[i] = false;
 			}
 		}
-		
+		let hold_block_type = self.hold_block_type;
+		if rh.is_key_pressed(KeyboardKey::KEY_C) && !self.hold_block {
+			self.hold_block = true;
+			self.hold_block_type = self.block.block_type + 1;
+			if hold_block_type == 0 {
+				self.blocks_order.swap(0, 1);
+				self.blocks_order.swap(1, 2);
+				self.blocks_order[2..7].shuffle(&mut self.rng);
+				self.block = Block::new(self.blocks_order[0]);
+	
+				while self.block.block_collision(&self.grid) {
+					self.block.pos[1] -= 1.0;
+				}
+			}
+			else {
+				self.block = Block::new(hold_block_type - 1);
+				self.blocks_order[0] = hold_block_type - 1;
+			}
+		}
 		if rh.is_key_pressed(KeyboardKey::KEY_LEFT) {
 			self.block.pos[0] -= 1.0;
 			if self.block.block_collision(&self.grid) {self.block.pos[0] += 1.0;}
@@ -131,16 +154,17 @@ impl MainLoop {
 				self.block.pos[0] += 2.0;
 				let right_col = self.block.block_collision(&self.grid);
 				
-				if !left_col && right_col {
+				if left_col && !right_col {}
+				else if !left_col && right_col {
 					self.block.pos[0] -= 2.0;
 				}
 				else if !left_col && !right_col {
 					self.block.pos[1] -= 1.0;
+					if !self.block.block_collision(&self.grid) {self.block.pos[1] += 1.0;}
 				}
-				else if left_col && right_col {
-					if self.block.rot > 0 {self.block.rot -= 1;}
-					else {self.block.rot += 3;}
-					self.block.pos[0] -= 1.0;
+				else {
+					self.block.rot -= 1;
+					if self.block.rot < 0 {self.block.rot = 3;}
 				}
 			}
 		}
@@ -180,6 +204,7 @@ impl MainLoop {
 			self.elapsed = 0.0;
 			self.elapsed1 = 0.0;
 			self.dir = 0;
+			self.hold_block = false;
 
 			while self.block.block_collision(&self.grid) {
 				self.block.pos[1] -= 1.0;
@@ -189,6 +214,18 @@ impl MainLoop {
 				return;
 			}
 			set_grid(&mut self.grid, &self.block);
+			for i in 1..7 {
+				if self.blocks_order[i] == self.blocks_order[0] {
+					for v in 0..7 {
+						let mut matching = false;
+						for c in 1..7 {
+							if self.blocks_order[c] == v {matching = true; break;}
+						}
+						if !matching {self.blocks_order[0] = v; break;}
+					}
+					break;
+				}
+			}
 			self.blocks_order.swap(0, 1);
 			self.blocks_order.swap(1, 2);
 			self.blocks_order[2..7].shuffle(&mut self.rng);
@@ -229,12 +266,28 @@ impl MainLoop {
 		}
 		render_grid_outline(rdh);
 		rdh.draw_rectangle_lines_ex(
-			Rectangle::new(END[0] as f32 + BLOCK_SIZE as f32 - 5.0, START[1] as f32 - 5.0, (BLOCK_SIZE * 5) as f32 + 10.0, (BLOCK_SIZE * 10) as f32 + 10.0), 
+			Rectangle::new(END[0] as f32 + (BLOCK_SIZE * 2) as f32 - 5.0, START[1] as f32 - 5.0, (BLOCK_SIZE * 5) as f32 + 10.0, (BLOCK_SIZE * 10) as f32 + 10.0), 
 			5, Color::WHITE
 		);
+		rdh.draw_rectangle_lines_ex(
+			Rectangle::new(START[0] as f32 - (BLOCK_SIZE * 2) as f32 - 5.0 - ((BLOCK_SIZE * 5) as f32 + 10.0), START[1] as f32 - 5.0, (BLOCK_SIZE * 5) as f32 + 10.0, (BLOCK_SIZE * 5) as f32 + 10.0),
+			5, Color::WHITE
+		);
+		if self.hold_block_type != 0 {
+			render_block(&{
+				let mut b = Block::new(self.hold_block_type - 1);
+				b.pos[0] -= 10.0;
+				b.pos[1] += 1.0;
+				b
+			}, rdh, 255, true, [
+				if self.hold_block_type == 1 || self.hold_block_type == 4 {BLOCK_SIZE / 2}
+				else {0},
+				0
+			]);
+		}
 		render_block(&{
 			let mut b = Block::new(self.blocks_order[1]);
-			b.pos[0] += 9.0;
+			b.pos[0] += 10.0;
 			b.pos[1] += 1.0;
 			b
 		}, rdh, 255, true, [
@@ -244,7 +297,7 @@ impl MainLoop {
 		]);
 		render_block(&{
 			let mut b = Block::new(self.blocks_order[2]);
-			b.pos[0] += 9.0;
+			b.pos[0] += 10.0;
 			b.pos[1] += 6.0;
 			b
 		}, rdh, 255, true, [
@@ -252,9 +305,10 @@ impl MainLoop {
 			else {0},
 			0
 		]);
-		if !self.game_over {rdh.draw_text(format!("Score: {}", self.score).as_str(), START[0], START[1] - 40, 20, Color::WHITE);}
-		else {
-			const FONT_SIZE: i32 = 20;
+		rdh.draw_text(format!("Score: {}", self.score).as_str(), START[0], START[1] - FONT_SIZE * 2, FONT_SIZE, Color::WHITE);
+		rdh.draw_text("Hold", START[0] - (BLOCK_SIZE * 2) - BLOCK_SIZE * 5 - 10, START[1] - FONT_SIZE * 2, FONT_SIZE, Color::WHITE);
+		rdh.draw_text("Incoming", END[0] + (BLOCK_SIZE * 2), START[1] - FONT_SIZE * 2, FONT_SIZE, Color::WHITE);
+		if self.game_over {
 			rdh.draw_rectangle(0, 0, WIDTH, HEIGHT, Color::new(0, 0, 0, (256 / 4 * 3) as u8));
 			rdh.draw_text(format!("Game over!\nLast score: {}\nBest score: {}", self.score, self.best_score).as_str(),
 				-FONT_SIZE * 3 + WIDTH / 2, -FONT_SIZE * 2 + HEIGHT / 2, FONT_SIZE, Color::WHITE);
