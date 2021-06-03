@@ -279,9 +279,9 @@ impl MainLoop {
 				b.pos[1] += 1.0;
 				b
 			}, rdh, 255, true, [
-				if self.hold_block_type == 1 || self.hold_block_type == 4 {BLOCK_SIZE / 2}
-				else {0},
-				0
+				if self.hold_block_type == 1 || self.hold_block_type == 4 {0}
+				else {BLOCK_SIZE / 2},
+				BLOCK_SIZE / 2
 			]);
 		}
 		render_block(&{
@@ -292,7 +292,7 @@ impl MainLoop {
 		}, rdh, 255, true, [
 			if self.blocks_order[1] == 0 || self.blocks_order[1] == 3 {-BLOCK_SIZE / 2}
 			else {0},
-			0
+			BLOCK_SIZE / 2
 		]);
 		render_block(&{
 			let mut b = Block::new(self.blocks_order[2]);
@@ -302,7 +302,7 @@ impl MainLoop {
 		}, rdh, 255, true, [
 			if self.blocks_order[2] == 0 || self.blocks_order[2] == 3 {-BLOCK_SIZE / 2}
 			else {0},
-			0
+			BLOCK_SIZE / 2
 		]);
 		rdh.draw_text(format!("Score: {}", self.score).as_str(), START[0], START[1] - FONT_SIZE * 2, FONT_SIZE, Color::WHITE);
 		rdh.draw_text("Hold", START[0] - (BLOCK_SIZE * 2) - BLOCK_SIZE * 5 - 10, START[1] - FONT_SIZE * 2, FONT_SIZE, Color::WHITE);
