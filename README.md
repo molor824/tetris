@@ -1,3 +1,1 @@
-Made using raylib and rust language.
-
-To compile and play this game, you must install rust from https://www.rust-lang.org/. On windows make sure to install C++ tools from Visual Studio as well. After that open cmd or terminal and type "cd path/to/game" and "cargo b --release; cargo r --release"
+Tetris made using [raylib-rs](https://github.com/deltaphc/raylib-rs). To compile the project, go to [rust](https://www.rust-lang.org/) website and follow the instructions to download and install. Then open your preferred terminal and go to the project path and type `cargo b --release` to compile the project and `cargo r --release` to run the project. The compiled executable will be in `target/release` 
