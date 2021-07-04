@@ -30,7 +30,7 @@ pub struct Block {
 	pub block_type: usize,
 }
 impl Block {
-	pub const fn new(block_type: usize) -> Self {
+	pub fn new(block_type: usize) -> Self {
 		Self {
 			pos: DEFAULT_POS[if block_type == 0 || block_type == 3 {1} else {0}],
 			rot: 0,

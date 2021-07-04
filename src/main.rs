@@ -5,8 +5,9 @@ use raylib::prelude::*;
 use std::io::prelude::*;
 use block::*;
 use render::*;
-use rand::prelude::*;
 use std::fs::{OpenOptions, File};
+use std::io::Write as ioWrite;
+use std::fmt::Write as fmtWrite;
 
 const DELAY: f32 = 1.0 / 100.0;
 const GRID_OUTLINE_THICKNESS: i32 = 1;
@@ -25,13 +26,24 @@ const SIDE_MOVE_DELAY: f32 = 0.2;
 const SIDE_MOVE_TIME: f32 = 0.05;
 const FONT_SIZE: i32 = 20;
 
+trait Shuffle {
+	fn shuffle(&mut self);
+}
+impl Shuffle for [usize] {
+	fn shuffle(&mut self) {
+		let len = self.len();
+
+		for i in 0..len {
+			self.swap(i, get_random_value::<i32>(0, len as i32 - 1) as usize);
+		}
+	}
+}
 struct MainLoop {
 	elapsed: f32,
 	elapsed1: f32,
 	elapsed2: f32,
 	dir: i8,
 	block: Block,
-	rng: ThreadRng,
 	grid: [usize; TETRIS_W * TETRIS_H],
 	blocks_order: [usize; 7],
 	score: u128,
@@ -41,12 +53,12 @@ struct MainLoop {
 	full_lines: [bool; TETRIS_H],
 	hold_block_type: usize,
 	hold_block: bool,
+	txt: String,
 }
 impl MainLoop {
 	fn new() -> Self {
-		let mut rng = thread_rng();
 		let mut order = [0, 1, 2, 3, 4, 5, 6];
-		order.shuffle(&mut rng);
+		order.shuffle();
 
 		Self {
 			elapsed: 0.0,
@@ -54,7 +66,6 @@ impl MainLoop {
 			elapsed2: 0.0,
 			dir: 0,
 			block: Block::new(order[0]),
-			rng: rng,
 			grid: [0; TETRIS_W * TETRIS_H],
 			blocks_order: order,
 			score: 0,
@@ -77,10 +88,18 @@ impl MainLoop {
 			full_lines: [false; TETRIS_H],
 			hold_block_type: 0,
 			hold_block: false,
+			txt: String::new(),
 		}
 	}
 	fn update(&mut self, rh: &mut RaylibHandle) {
-		if self.game_over {return;}
+		if self.game_over {
+			if rh.is_key_pressed(KeyboardKey::KEY_ENTER) {
+				let temp = self.best_score;
+				*self = Self::new();
+				self.best_score = temp;
+			}
+			return;
+		}
 
 		self.elapsed1 += DELAY;
 		if self.dir != 0 {self.elapsed2 -= DELAY;}
@@ -117,7 +136,7 @@ impl MainLoop {
 			if hold_block_type == 0 {
 				self.blocks_order.swap(0, 1);
 				self.blocks_order.swap(1, 2);
-				self.blocks_order[2..7].shuffle(&mut self.rng);
+				self.blocks_order[2..7].shuffle();
 				self.block = Block::new(self.blocks_order[0]);
 	
 				while self.block.block_collision(&self.grid) {
@@ -227,7 +246,7 @@ impl MainLoop {
 			}
 			self.blocks_order.swap(0, 1);
 			self.blocks_order.swap(1, 2);
-			self.blocks_order[2..7].shuffle(&mut self.rng);
+			self.blocks_order[2..7].shuffle();
 			self.block = Block::new(self.blocks_order[0]);
 
 			while self.block.block_collision(&self.grid) {
@@ -245,8 +264,8 @@ impl MainLoop {
 				self.score += 10;
 			}
 			self.score += 1;
+			if self.score > self.best_score {self.best_score = self.score;}
 		}
-		if self.best_score < self.score {self.best_score = self.score;}
 	}
 	fn render(&mut self, rdh: &mut RaylibDrawHandle) {
 		rdh.clear_background(Color::BLACK);
@@ -304,14 +323,31 @@ impl MainLoop {
 			else {0},
 			BLOCK_SIZE / 2
 		]);
-		rdh.draw_text(format!("Score: {}", self.score).as_str(), START[0], START[1] - FONT_SIZE * 2, FONT_SIZE, Color::WHITE);
+
+		self.txt.clear();
+		write!(&mut self.txt, "Score: {}\nBest Score: {}", self.score, self.best_score).unwrap();
+
+		rdh.draw_text(self.txt.as_str(), START[0], START[1] - FONT_SIZE * 3, FONT_SIZE, Color::WHITE);
 		rdh.draw_text("Hold", START[0] - (BLOCK_SIZE * 2) - BLOCK_SIZE * 5 - 10, START[1] - FONT_SIZE * 2, FONT_SIZE, Color::WHITE);
 		rdh.draw_text("Incoming", END[0] + (BLOCK_SIZE * 2), START[1] - FONT_SIZE * 2, FONT_SIZE, Color::WHITE);
 		if self.game_over {
+			self.txt.clear();
+			write!(&mut self.txt, "Game Over!\nLast Score: {}\nBest Score: {}\nPress 'Enter' to restart!", self.score, self.best_score).unwrap();
+
 			rdh.draw_rectangle(0, 0, WIDTH, HEIGHT, Color::new(0, 0, 0, (256 / 4 * 3) as u8));
-			rdh.draw_text(format!("Game over!\nLast score: {}\nBest score: {}", self.score, self.best_score).as_str(),
-				-FONT_SIZE * 3 + WIDTH / 2, -FONT_SIZE * 2 + HEIGHT / 2, FONT_SIZE, Color::WHITE);
+			rdh.draw_text(
+				self.txt.as_str(),
+				-FONT_SIZE * 3 + WIDTH / 2, -FONT_SIZE * 2 + HEIGHT / 2, FONT_SIZE, Color::WHITE
+			);
 		}
+	}
+}
+impl Drop for MainLoop {
+	fn drop(&mut self) {
+		write!(
+			&mut OpenOptions::new().write(true).truncate(true).create(true).open(SAVE_PATH).unwrap(),
+			"{}", self.best_score
+		).unwrap();
 	}
 }
 fn main() {
@@ -324,7 +360,4 @@ fn main() {
 		main_loop.update(&mut rh);
 		main_loop.render(&mut rh.begin_drawing(&thread));
 	}
-
-	let mut file = OpenOptions::new().write(true).truncate(true).open(SAVE_PATH).unwrap();
-	write!(file, "{}", main_loop.best_score).unwrap();
 }
